@@ -1,37 +1,80 @@
 {
-	"route1":
+	"lo->AFDX":
 	{
-		"localIP_from": "127.0.2.1",
-		"localPort_from": 28026,
-		"ip_from": "10.4.46.5",
-		"ip_to": "10.4.46.17",
-		"port_from": 28025,
-		"port_to": 28026,
-		"mac_from": "02:00:00:04:2e:20",
-		"mac_to": "03:00:00:00:61:AD"
+		"route1":
+		{
+			"localIP_from": "127.0.2.1",
+			"localPort_from": 28026,
+			"ip_from": "10.4.46.5",
+			"ip_to": "10.4.46.17",
+			"port_from": 28025,
+			"port_to": 28026,
+			"mac_from": "02:00:00:04:2e:20",
+			"mac_to": "03:00:00:00:61:AD"
+		},
+
+		"route2":
+		{
+			"localIP_from": "127.0.2.1",
+			"localPort_from": 28027,
+			"ip_from": "127.0.0.2",
+			"ip_to": "192.168.1.2",
+			"port_from": 25566,
+			"port_to": 80,
+			"mac_from": "00:0C:29:D3:BE:D6",
+			"mac_to": "00:0C:29:E0:C4:AF"
+		},
+
+		"route3":
+		{
+			"localIP_from": "127.0.2.1",
+			"localPort_from": 28028,
+			"ip_from": "127.0.0.2",
+			"ip_to": "192.168.1.2",
+			"port_from": 25567,
+			"port_to": 80,
+			"mac_from": "00:0C:29:D3:BE:D6",
+			"mac_to": "00:0C:29:E0:C4:AF"
+		}
 	},
 
-	"route2":
+		"AFDX->lo":
 	{
-		"localIP_from": "127.0.2.1",
-		"localPort_from": 28027,
-		"ip_from": "127.0.0.2",
-		"ip_to": "192.168.1.2",
-		"port_from": 25566,
-		"port_to": 80,
-		"mac_from": "00:0C:29:D3:BE:D6",
-		"mac_to": "00:0C:29:E0:C4:AF"
-	},
+		"route1":
+		{
+			"localIP_to": "127.0.2.1",
+			"localPort_to": 28026,
+			"ip_from": "10.4.46.5",
+			"ip_to": "10.4.46.17",
+			"port_from": 28025,
+			"port_to": 28026,
+			"mac_from": "02:00:00:04:2e:20",
+			"mac_to": "03:00:00:00:61:AD"
+		},
 
-	"route3":
-	{
-		"localIP_from": "127.0.2.1",
-		"localPort_from": 28028,
-		"ip_from": "127.0.0.2",
-		"ip_to": "192.168.1.2",
-		"port_from": 25567,
-		"port_to": 80,
-		"mac_from": "00:0C:29:D3:BE:D6",
-		"mac_to": "00:0C:29:E0:C4:AF"
+		"route2":
+		{
+			"localIP_to": "127.0.2.1",
+			"localPort_to": 28027,
+			"ip_from": "127.0.0.2",
+			"ip_to": "192.168.1.2",
+			"port_from": 25566,
+			"port_to": 80,
+			"mac_from": "00:0C:29:D3:BE:D6",
+			"mac_to": "00:0C:29:E0:C4:AF"
+		},
+
+		"route3":
+		{
+			"localIP_to": "127.0.2.1",
+			"localPort_to": 28028,
+			"ip_from": "127.0.0.2",
+			"ip_to": "192.168.1.2",
+			"port_from": 25567,
+			"port_to": 80,
+			"mac_from": "00:0C:29:D3:BE:D6",
+			"mac_to": "00:0C:29:E0:C4:AF"
+		}
 	}
+
 }
