@@ -3,9 +3,6 @@ import json
 import struct
 from dataclasses import dataclass
 
-localSoc = socket.socket(socket.AF_PACKET , socket.SOCK_RAW , socket.ntohs(0x0003))
-#localSoc.bind(("enx34298f70051b", 0))
-
 @dataclass
 class EthernetHeader:
 	macSrc: list
@@ -17,6 +14,11 @@ class EthernetHeader:
 		self.macDst = macDst
 		self.lvl3ProtoType = lvl3ProtoType
 
+	#def __init__(self):
+	#	self.macSrc = list()
+	#	self.macDst = list()
+	#	self.lvl3ProtoType = 0
+
 	def makeLVl2Header(self, lvl3msg):
 		ethernetHeader = bytearray()
 		for fragment in self.macDst:
@@ -26,10 +28,6 @@ class EthernetHeader:
 		ethernetHeader += self.lvl3ProtoType.to_bytes(2, 'little') # costyl` ne trogat`
 		ethernetHeader += lvl3msg
 		return ethernetHeader
-
-	def parseLvl2Header(self, message):
-		dest, src, prototype = struct.unpack('! 6s 6s H', message[:14])
-		return dest, src, socket.htons(prototype), message[14:]
 
 @dataclass 
 class IPHeader: #https://en.wikipedia.org/wiki/Internet_Protocol_version_4#IHL
@@ -68,13 +66,6 @@ class IPHeader: #https://en.wikipedia.org/wiki/Internet_Protocol_version_4#IHL
 		cksum = (cksum >> 16) + (cksum & 0xffff)
 		cksum += (cksum >>16)
 		return (~cksum) & 0xFFFF
-
-	def parseLvl3Header(self, message):
-		version_header_length = message[0]
-		version = version_header_length >> 4
-		header_length = (version_header_length & 15) * 4
-		ttl, proto, src, target = struct.unpack('! 8x B B 2x 4s 4s', message[:20])
-		return version, header_length, ttl, proto, src, target, message[header_length:]
 
 
 
@@ -136,10 +127,6 @@ class TransportHeader: #UDP - https://en.wikipedia.org/wiki/User_Datagram_Protoc
 			UDPHeader +=message
 		return UDPHeader
 
-	def parseUDPHeader(self, message):
-		srcPort, dstPort, msgLen, checksum = struct.unpack('! H H H H', message[:8])
-		return srcPort, dstPort, msgLen, checksum, message[8:]
-
 
 @dataclass
 class lo_AFDXRoute:
@@ -188,83 +175,101 @@ class lo_AFDXRoute:
 		except socket.timeout:
 			return
 
-	#AFDX -> lo
-	def retranslateMessagesFromDstHost(self):
-		try:
-			#localSoc = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
-			
-			#localSoc.bind(("lo", 0))
-			localSoc.settimeout(10)
-			#localSoc.set_blocking(false)
-			raw_data, addr = localSoc.recvfrom(65535)
-			unpackedEther = self.ethernetHeaderMaker.parseLvl2Header(raw_data)
 
-			unpackedIP = self.IPHeaderMaker.parseLvl3Header(unpackedEther[3])
-			if(socket.inet_ntoa(unpackedIP[5]) != "224.224.86.88"):
-				print("not valid ip packet", socket.inet_ntoa(unpackedIP[5]))
-				return
-
-			print("mac src - ", unpackedEther[0])
-			print("mac dest - ", unpackedEther[1])
-			print()
-
-			print("TTL - ", unpackedIP[2])
-			print("Proto - ", unpackedIP[3])
-			print("IP src - ", socket.inet_ntoa(unpackedIP[4]))
-			print("IP dest - ", socket.inet_ntoa(unpackedIP[5]))
-
-			unpackedUDP = self.TransportHeaderMaker.parseUDPHeader(unpackedIP[6])
-			print("src port - ", unpackedUDP[0])
-			print("dest port - ", unpackedUDP[1])
-		except socket.timeout:
-			return
 
 									#AFDX -> lo
 #--------------------------------------------------------------------------------------------
 @dataclass
 class AFDX_loRoute:
-	socket_to = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-	socket_from = socket.socket(socket.AF_PACKET , socket.SOCK_RAW , socket.ntohs(0x0003))
+	localIP: str
+	localPort: int
+	#AFDX packet settings
 	dstIP: str
 	srcIP: str
 	dstPort: int
 	srcPort: int
 
-	def __init__(self, _dstIP, _srcIP, _dstPort, _srcPort):
+	def __init__(self, _dstIP, _srcIP, _dstPort, _srcPort, _localIP, _localPort):
 		self.dstIP = _dstIP
 		self.srcIP = _srcIP
 		self.dstPort = _dstPort
 		self.srcPort = _srcPort
+		self.localIP = _localIP
+		self.localPort = _localPort
+
+@dataclass
+class AFDX_loRetranslator:
+	socket_to = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	socket_from = socket.socket(socket.AF_PACKET , socket.SOCK_RAW , socket.ntohs(0x0003))
+	AFDX_loRoutes = list()
+
+	def __init__(self, AFDX_loJSON):
+		for item in AFDX_loJSON:
+			self.AFDX_loRoutes.append(AFDX_loRoute(item[1]["ip_to"], item[1]["ip_from"], item[1]["port_to"], item[1]["port_from"], item[1]["localIP_to"], item[1]["localPort_to"]))
+		#self.socket_from.bind(("ens33", 0))
+		self.socket_from.settimeout(0.00000001)
+		self.printRoutes()
+
+	def printRoutes(self):
+		for route in self.AFDX_loRoutes:
+			print(route)
+
+	def parseLvl2Header(self, message):
+		dest, src, prototype = struct.unpack('! 6s 6s H', message[:14])
+		return dest, src, socket.htons(prototype), message[14:]
+
+
+	def parseLvl3Header(self, message):
+		version_header_length = message[0]
+		version = version_header_length >> 4
+		header_length = (version_header_length & 15) * 4
+		ttl, proto, src, target = struct.unpack('! 8x B B 2x 4s 4s', message[:20])
+		return version, header_length, ttl, proto, src, target, message[header_length:]
+
+
+	def parseUDPHeader(self, message):
+		srcPort, dstPort, msgLen, checksum = struct.unpack('! H H H H', message[:8])
+		return srcPort, dstPort, msgLen, checksum, message[8:]
+
+	def sendToLO(self, payload, route):
+		print(payload)
+		print()
+		print(route)
+
+
 
 	def retranslateMessagesFromDstHost(self):
-		try:
-			#localSoc = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
-			
-			#localSoc.bind(("lo", 0))
-			localSoc.settimeout(10)
-			#localSoc.set_blocking(false)
-			raw_data, addr = localSoc.recvfrom(65535)
-			unpackedEther = self.ethernetHeaderMaker.parseLvl2Header(raw_data)
+		while True:
 
-			unpackedIP = self.IPHeaderMaker.parseLvl3Header(unpackedEther[3])
-			if(socket.inet_ntoa(unpackedIP[5]) != "224.224.86.88"):
-				print("not valid ip packet", socket.inet_ntoa(unpackedIP[5]))
-				return
+			try:
+				#trying get message
+				raw_data, addr = self.socket_from.recvfrom(65535)
 
-			print("mac src - ", unpackedEther[0])
-			print("mac dest - ", unpackedEther[1])
-			print()
+				#parse packet
+				macSrc, macDst, LVL2proto, LVL3Data = self.parseLvl2Header(raw_data)
+				version, header_length, ttl, proto, srcIP, dstIP, LVL4Data = self.parseLvl3Header(LVL3Data)
+				srcPort, dstPort, msgLen, checksum, payload = self.parseUDPHeader(LVL4Data)
 
-			print("TTL - ", unpackedIP[2])
-			print("Proto - ", unpackedIP[3])
-			print("IP src - ", socket.inet_ntoa(unpackedIP[4]))
-			print("IP dest - ", socket.inet_ntoa(unpackedIP[5]))
+				'''print("mac src - ", macSrc)
+				print("mac dest - ", macDst)
+				print()
 
-			unpackedUDP = self.TransportHeaderMaker.parseUDPHeader(unpackedIP[6])
-			print("src port - ", unpackedUDP[0])
-			print("dest port - ", unpackedUDP[1])
-		except socket.timeout:
-			return
+				print("TTL - ", ttl)
+				print("Proto - ", proto)
+				print("IP src - ", socket.inet_ntoa(srcIP))
+				print("IP dest - ", socket.inet_ntoa(dstIP))
+				print()
+
+				print("src port - ", srcPort)
+				print("dest port - ", dstPort)'''
+
+				for route in self.AFDX_loRoutes:
+					if(route.dstIP == socket.inet_ntoa(dstIP) and route.dstPort == dstPort): #and route.srcPort):
+						self.sendToLO(route, payload)
+
+
+			except socket.timeout:
+				continue
 
 #json with route tables
 with open("portIpMacTable.json", "r") as fh:
@@ -282,19 +287,20 @@ for item in lo_AFDX:
 
 
 
+
+
+
+
+
+
+#lo -> AFDX main loop
+#while True:	
+#	for socketPair in lo_AFDXSockets:
+#		socketPair.retranslateMessagesToDstHost()
+
+
 #working with AFDX -> lo route
-AFDX_loSockets = list()
-AFDX_lo = myJson["AFDX->lo"].items()
-
-for item in lo_AFDX:
-	AFDX_loSockets.append(AFDX_loRoute(item[1]["ip_to"], item[1]["ip_from"], item[1]["port_to"], item[1]["port_from"]))
-
-
-
-
-while True:	
-	for socketPair in lo_AFDXSockets:
-		socketPair.retranslateMessagesFromDstHost()
-
+AFDX_lo = AFDX_loRetranslator(myJson["AFDX->lo"].items())
+AFDX_lo.retranslateMessagesFromDstHost()
 
 #socketPair.retranslateMessagesToDstHost()
