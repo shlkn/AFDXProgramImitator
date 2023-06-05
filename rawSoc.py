@@ -1,6 +1,7 @@
 import socket
 import json
 import struct
+import threading
 from dataclasses import dataclass
 
 @dataclass
@@ -206,8 +207,8 @@ class AFDX_loRetranslator:
 	def __init__(self, AFDX_loJSON):
 		for item in AFDX_loJSON:
 			self.AFDX_loRoutes.append(AFDX_loRoute(item[1]["ip_to"], item[1]["ip_from"], item[1]["port_to"], item[1]["port_from"], item[1]["localIP_to"], item[1]["localPort_to"]))
-		#self.socket_from.bind(("ens33", 0))
-		self.socket_from.settimeout(0.00000001)
+		self.socket_from.bind(("enx34298f70051b", 0))
+		self.socket_from.settimeout(0.0001)
 		self.printRoutes()
 
 	def printRoutes(self):
@@ -232,9 +233,10 @@ class AFDX_loRetranslator:
 		return srcPort, dstPort, msgLen, checksum, message[8:]
 
 	def sendToLO(self, payload, route):
-		print(payload)
 		print()
-		print(route)
+		print(route)				  #cut off last AFDX byte
+		self.socket_to.sendto(payload[:-1], (route.localIP, int(route.localPort)))
+		print("packet from AFDX to lo sended")
 
 
 
@@ -243,14 +245,14 @@ class AFDX_loRetranslator:
 
 			try:
 				#trying get message
-				raw_data, addr = self.socket_from.recvfrom(65535)
+				raw_data, addr = AFDX_loRetranslator.socket_from.recvfrom(65535)
 
 				#parse packet
 				macSrc, macDst, LVL2proto, LVL3Data = self.parseLvl2Header(raw_data)
 				version, header_length, ttl, proto, srcIP, dstIP, LVL4Data = self.parseLvl3Header(LVL3Data)
 				srcPort, dstPort, msgLen, checksum, payload = self.parseUDPHeader(LVL4Data)
 
-				'''print("mac src - ", macSrc)
+				print("mac src - ", macSrc)
 				print("mac dest - ", macDst)
 				print()
 
@@ -261,11 +263,11 @@ class AFDX_loRetranslator:
 				print()
 
 				print("src port - ", srcPort)
-				print("dest port - ", dstPort)'''
+				print("dest port - ", dstPort)
 
-				for route in self.AFDX_loRoutes:
+				'''for route in self.AFDX_loRoutes:
 					if(route.dstIP == socket.inet_ntoa(dstIP) and route.dstPort == dstPort): #and route.srcPort):
-						self.sendToLO(route, payload)
+						self.sendToLO(payload, route)'''
 
 
 			except socket.timeout:
@@ -301,6 +303,8 @@ for item in lo_AFDX:
 
 #working with AFDX -> lo route
 AFDX_lo = AFDX_loRetranslator(myJson["AFDX->lo"].items())
-AFDX_lo.retranslateMessagesFromDstHost()
+AFDX_lo_thread = threading.Thread(target = AFDX_lo.retranslateMessagesFromDstHost)
+AFDX_lo_thread.start()
+#AFDX_lo.()
 
 #socketPair.retranslateMessagesToDstHost()
