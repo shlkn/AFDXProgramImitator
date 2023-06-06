@@ -2,7 +2,10 @@ import socket
 import json
 import struct
 import threading
+import os
 from dataclasses import dataclass
+
+INTF_NAME = "enx34298f70051b"
 
 @dataclass
 class EthernetHeader:
@@ -148,8 +151,7 @@ class lo_AFDXRoute:
 		#out socket configuration
 		self.socket_to = socket.socket(socket.AF_PACKET, socket.SOCK_RAW)
 
-		self.socket_to.bind(("lo", 0))
-		#self.socket_to.bind(("enx34298f70051b", 0))
+		self.socket_to.bind((INTF_NAME, 0))
 
 		#self.socket_to.setblocking(0)
 		self.socket_to.settimeout(0.0000001)
@@ -167,12 +169,12 @@ class lo_AFDXRoute:
 			udp_header = self.TransportHeaderMaker.makeUDPHeader(data)
 			ip_header = self.IPHeaderMaker.makeLVl3Header(udp_header)
 			fullMsg = self.ethernetHeaderMaker.makeLVl2Header(ip_header)
-			fullMsg += self.serialData.to_bytes(1, "big")
-			self.serialData += 1
+			fullMsg += self.serialNumber.to_bytes(1, "big")
+			self.serialNumber += 1
 
 
 			self.socket_to.send(fullMsg)
-			print("Packet sended")
+			print("Packet form lo to AFDX sended")
 		except socket.timeout:
 			return
 
@@ -207,8 +209,11 @@ class AFDX_loRetranslator:
 	def __init__(self, AFDX_loJSON):
 		for item in AFDX_loJSON:
 			self.AFDX_loRoutes.append(AFDX_loRoute(item[1]["ip_to"], item[1]["ip_from"], item[1]["port_to"], item[1]["port_from"], item[1]["localIP_to"], item[1]["localPort_to"]))
-		self.socket_from.bind(("enx34298f70051b", 0))
+		
+		self.socket_from.bind((INTF_NAME, 0))
 		self.socket_from.settimeout(0.0001)
+		cmd = "sudo ifconfig " + INTF_NAME + " promisc" # for configurating intf to capture all packets
+		os.system(cmd)
 		self.printRoutes()
 
 	def printRoutes(self):
@@ -233,8 +238,7 @@ class AFDX_loRetranslator:
 		return srcPort, dstPort, msgLen, checksum, message[8:]
 
 	def sendToLO(self, payload, route):
-		print()
-		print(route)				  #cut off last AFDX byte
+		print()						  #cut off last AFDX byte
 		self.socket_to.sendto(payload[:-1], (route.localIP, int(route.localPort)))
 		print("packet from AFDX to lo sended")
 
@@ -252,22 +256,10 @@ class AFDX_loRetranslator:
 				version, header_length, ttl, proto, srcIP, dstIP, LVL4Data = self.parseLvl3Header(LVL3Data)
 				srcPort, dstPort, msgLen, checksum, payload = self.parseUDPHeader(LVL4Data)
 
-				print("mac src - ", macSrc)
-				print("mac dest - ", macDst)
-				print()
 
-				print("TTL - ", ttl)
-				print("Proto - ", proto)
-				print("IP src - ", socket.inet_ntoa(srcIP))
-				print("IP dest - ", socket.inet_ntoa(dstIP))
-				print()
-
-				print("src port - ", srcPort)
-				print("dest port - ", dstPort)
-
-				'''for route in self.AFDX_loRoutes:
+				for route in self.AFDX_loRoutes:
 					if(route.dstIP == socket.inet_ntoa(dstIP) and route.dstPort == dstPort): #and route.srcPort):
-						self.sendToLO(payload, route)'''
+						self.sendToLO(payload, route)
 
 
 			except socket.timeout:
@@ -290,21 +282,23 @@ for item in lo_AFDX:
 
 
 
-
-
+def mainLoopLoAFDX(lo_AFDXSockets):
+	while True:	
+		for socketPair in lo_AFDXSockets:
+			socketPair.retranslateMessagesToDstHost()
 
 
 
 #lo -> AFDX main loop
-#while True:	
-#	for socketPair in lo_AFDXSockets:
-#		socketPair.retranslateMessagesToDstHost()
+lo_AFDX_thread = threading.Thread(target = mainLoopLoAFDX, args=(lo_AFDXSockets,))
+lo_AFDX_thread.start()
+
 
 
 #working with AFDX -> lo route
 AFDX_lo = AFDX_loRetranslator(myJson["AFDX->lo"].items())
 AFDX_lo_thread = threading.Thread(target = AFDX_lo.retranslateMessagesFromDstHost)
 AFDX_lo_thread.start()
-#AFDX_lo.()
+
 
 #socketPair.retranslateMessagesToDstHost()

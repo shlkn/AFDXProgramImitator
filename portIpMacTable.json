@@ -1,7 +1,7 @@
 {
 	"lo->AFDX":
 	{
-		"route1":
+		"OMUA_PN":
 		{
 			"localIP_from": "127.0.2.1",
 			"localPort_from": 28026,
@@ -13,16 +13,16 @@
 			"mac_to": "03:00:00:00:61:AD"
 		},
 
-		"route2":
+		"CMA_GP":
 		{
 			"localIP_from": "127.0.2.1",
-			"localPort_from": 28027,
-			"ip_from": "127.0.0.2",
-			"ip_to": "192.168.1.2",
-			"port_from": 25566,
-			"port_to": 80,
-			"mac_from": "00:0C:29:D3:BE:D6",
-			"mac_to": "00:0C:29:E0:C4:AF"
+			"localPort_from": 7001,
+			"ip_from": "10.4.34.16",
+			"ip_to": "224.224.27.89",
+			"port_from": 7000,
+			"port_to": 7001,
+			"mac_from": "02:00:00:04:22:20",
+			"mac_to": "03:00:00:00:1B:59"
 		},
 
 		"route3":
@@ -40,9 +40,9 @@
 
 		"AFDX->lo":
 	{
-		"route1":
+		"OMDBA_GP":
 		{
-			"localIP_to": "127.0.2.1",
+			"localIP_to": "127.0.1.1",
 			"localPort_to": 25511,
 			"ip_from": "10.4.46.5",
 			"ip_to": "224.224.86.88",
